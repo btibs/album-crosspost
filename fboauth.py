@@ -51,11 +51,11 @@ class FbOauth:
         
         if server.fb_code is not None:
             # Exchange code for a token
-            token_url = "https://graph.facebook.com/v2.3/oauth/access_token?client_id=" \
+            token_url = "https://graph.facebook.com/v2.7/oauth/access_token?client_id=" \
                 + self.app_id + "&redirect_uri=" + redirect_uri \
                 + "&client_secret=" + self.app_secret + "&code=" + server.fb_code
-            result = urlopen(token_url).read().decode("utf-8")
-            token = json.loads(result)['access_token']
+            response = urlopen(token_url).read().decode("utf-8")
+            token = json.loads(response)['access_token']
         else:
             print("\nFacebook server did not get code :(")
             # TODO throw error?

@@ -5,24 +5,24 @@ from fbconnector import FacebookConnector
 
 import sys
 
-DOWNLOAD_DIR = "temp"
-
 def main():
     fb = FacebookConnector(FACEBOOK_APP_ID, FACEBOOK_APP_SECRET)
     fb.authenticate()
     imgur = ImgurConnector(IMGUR_CLIENT_ID, IMGUR_CLIENT_SECRET)
     imgur.authenticate()
     
+    print()
     albums = fb.get_albums()
     for a in albums:
         print(a['id'] + ": " + a['name'])
-    aid = input("Enter ID of album to download, or 0 to quit: ")
-    if aid is 0:
+    aid = input("\nEnter ID of album to download, or q to quit: ")
+    print()
+    if aid == 'q':
         print("Bye")
         sys.exit(0)
-    fb.get_album(aid, DOWNLOAD_DIR)
 
-    imgur.make_album(DOWNLOAD_DIR)
+    fb.download_album(aid)
+    imgur.make_album(aid)
 
 if __name__ == "__main__":
     main()
