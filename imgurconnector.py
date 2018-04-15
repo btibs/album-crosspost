@@ -1,10 +1,29 @@
 # Imgur-related code
 
 from imgurpython import ImgurClient
+
+from fbconnector import INFO_FILE
+
+import json
 import webbrowser
 import sys
+from dateutil import parser
+
+from base64 import b64encode
 
 CREDENTIALS_FILE = ".imgcredentials"
+IMGUR_API_BASE = "https://api.imgur.com/"
+IMGUR_ALBUM_BASE = "https://imgur.com/a/"
+
+def make_caption(data):
+    s = "Originally uploaded: %s\nLast updated: %s" % (parser.parse(data['created_time']), parser.parse(data['created_time']))
+    if data['backdated_time'] is not None:
+        s += "\n\nBackdated to: %s" % parser.parse(data['backdated_time'])
+    if data['tags'] is not None and len(data['tags']) > 0:
+        s += "\n\nTagged: " + ','.join(data['tags'])
+    if data['place'] is not None:
+        s += "\n\nLocation: " + data['place']
+    return s
 
 class ImgurConnector:
     def __init__(self, app_id, app_secret):
@@ -54,6 +73,26 @@ class ImgurConnector:
         
         self.client = client
 
-    def make_album(self, album):
-        """Create a new imgur album"""
-        pass
+    def upload_album(self, album_folder):
+        """Upload the given album to imgur"""
+        
+        # Read in the album information
+        metadata = json.load(open(album_folder + "/" + INFO_FILE, 'r'))
+
+        # Create the album
+        album_description = metadata['description']
+        if metadata['location'] is not None:
+            album_description += "\n\nLocation: " + metadata['location']
+        album_fields = {'title':metadata['name'], 'description':album_description, 'privacy':'hidden'}
+        album_response = self.client.create_album(album_fields)
+        album_id = album_response['id']
+
+        # Upload all the images
+        for img in metadata['photos']:
+            img_path = album_folder + "/" + img['filename']
+            description = make_caption(img)
+            config = {'album':album_id, 'title':img['name'], 'description':description}
+            print("Uploading " + img_path)
+            img_response = self.client.upload_from_path(img_path, config=config, anon=False)
+
+        print("Album online at " + IMGUR_ALBUM_BASE + album_id)

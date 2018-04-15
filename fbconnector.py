@@ -13,6 +13,7 @@ from dateutil import parser, tz
 import time
 
 CREDENTIALS_FILE = ".fbcredentials"
+INFO_FILE = "info.json"
 ALBUM_FIELDS = ["name","created_time","updated_time","description","location"] # not exactly sure how users set album location but it does return things sometimes...
 PHOTO_FIELDS = ["name","created_time","backdated_time","updated_time","tags","place"] #"name_tags" is in the API docs but doesn't actually return things...
 
@@ -84,6 +85,8 @@ class FacebookConnector:
         """
         Download album with given ID. Pictures and relevant info will be saved in
         a directory labeled with the album's ID
+
+        Returns the directory where the album was downloaded
         """
         album = self.graph.get_object(album_id, fields=','.join(ALBUM_FIELDS + ['count']))
 
@@ -107,7 +110,7 @@ class FacebookConnector:
             
             img_max, photo = self.get_photo(album_photo['id'])
             filename = album_photo['id'] + ".jpg"
-            photo_info = {}
+            photo_info = {'filename':filename}
             for field in PHOTO_FIELDS:
                 if field in photo:
                     photo_info[field] = photo[field]
@@ -129,7 +132,9 @@ class FacebookConnector:
 
             i += 1
 
-        info_file = open(os.path.join(folder_name, "info.json"), "w")
+        info_file = open(os.path.join(folder_name, INFO_FILE), "w")
         json.dump(info, info_file)
         info_file.close()
         print("Download complete! Album is located in: " + folder_name)
+
+        return folder_name

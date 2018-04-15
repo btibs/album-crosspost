@@ -21,8 +21,8 @@ def main():
             print("Bye")
             sys.exit(0)
 
-        fb.download_album(aid)
-        imgur.make_album(aid)
+        album_folder = fb.download_album(aid)
+        imgur.upload_album(album_folder)
 
 if __name__ == "__main__":
     main()
