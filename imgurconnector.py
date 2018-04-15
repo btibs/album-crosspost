@@ -1,6 +1,8 @@
 # Imgur-related code
 
 from imgurpython import ImgurClient
+import webbrowser
+import sys
 
 CREDENTIALS_FILE = ".imgcredentials"
 
@@ -37,9 +39,13 @@ class ImgurConnector:
             auth_url = imgur_client.get_auth_url('pin')
             webbrowser.open_new_tab(auth_url)
             pin = input("Enter PIN: ")
-            # TODO what if fail
-            credentials = imgur_client.authorize(pin, 'pin')
-            client.set_user_auth(credentials['access_token'], credentials['refresh_token'])
+            try:
+                credentials = imgur_client.authorize(pin, 'pin')
+                client = ImgurClient(self.app_id, self.app_secret, credentials['access_token'], credentials['refresh_token'])
+            except:
+                print("Error authenticating PIN:", sys.exc_info()[1])
+                sys.exit()
+
             auth_file = open(CREDENTIALS_FILE, "w")
             auth_file.write(credentials['access_token'] + "\n")
             auth_file.write(credentials['refresh_token'])

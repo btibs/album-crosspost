@@ -6,7 +6,7 @@ Developed on Windows 7 using Python 3, no guarantees for other platforms
 
 - Facebook OAuth does not work. Facebook has started requiring all apps to use HTTPS and this was using a local HTTP server. Workaround: manually generate a token at https://developers.facebook.com/tools/explorer/145634995501895/ (select the `user_photos` permission) and paste into a file named `.fbcredentials`.
 - Facebook album download only
-- Imgur authentication works once you have a token, but currently has issues with getting it... stay tuned.
+- Imgur authenticates properly but does not upload (yet)
 
 Libraries used:
 

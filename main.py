@@ -1,6 +1,6 @@
 from constants import FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, IMGUR_CLIENT_ID, IMGUR_CLIENT_SECRET
 
-#from imgurconnector import ImgurConnector
+from imgurconnector import ImgurConnector
 from fbconnector import FacebookConnector
 
 import sys
@@ -8,8 +8,8 @@ import sys
 def main():
     fb = FacebookConnector(FACEBOOK_APP_ID, FACEBOOK_APP_SECRET)
     fb.authenticate()
-    #imgur = ImgurConnector(IMGUR_CLIENT_ID, IMGUR_CLIENT_SECRET)
-    #imgur.authenticate()
+    imgur = ImgurConnector(IMGUR_CLIENT_ID, IMGUR_CLIENT_SECRET)
+    imgur.authenticate()
     
     while True:
         print()
@@ -22,7 +22,7 @@ def main():
             sys.exit(0)
 
         fb.download_album(aid)
-        #imgur.make_album(aid)
+        imgur.make_album(aid)
 
 if __name__ == "__main__":
     main()
