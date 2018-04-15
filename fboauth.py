@@ -2,6 +2,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.request import urlopen
 import webbrowser
 import json
+#import ssl
 
 class FbServerHandler(BaseHTTPRequestHandler):
     def __init__(self, request, address, server, app_id, app_secret):
@@ -30,6 +31,7 @@ class FbServerHandler(BaseHTTPRequestHandler):
 class FbServer(HTTPServer):
     def __init__(self, server_address, handler):
         super().__init__(server_address, handler)
+        #self.socket = ssl.wrap_socket(self.socket, certfile='server.pem', server_side=True)
         self.fb_code = None
 
 class FbOauth:
@@ -38,7 +40,7 @@ class FbOauth:
         self.app_secret = app_secret
 
     def get_access_token(self):
-        redirect_uri = "http://localhost:8000/"
+        redirect_uri = "https://localhost:8000/"
         login_url = "https://www.facebook.com/dialog/oauth?client_id=" \
             + self.app_id + "&redirect_uri=" + redirect_uri \
             + "&scope=user_photos&response_type=code"

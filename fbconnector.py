@@ -1,6 +1,7 @@
 # Facebook-related code
 
 from fboauth import FbOauth
+from fbalbum import FacebookAlbumIterator, FacebookPhotoIterator
 
 from urllib.request import urlopen
 import json
@@ -8,18 +9,28 @@ import facebook
 import os
 import requests
 import shutil
+from dateutil import parser, tz
+import time
 
 CREDENTIALS_FILE = ".fbcredentials"
+ALBUM_FIELDS = ["name","created_time","updated_time","description","location"] # not exactly sure how users set album location but it does return things sometimes...
+PHOTO_FIELDS = ["name","created_time","backdated_time","updated_time","tags","place"] #"name_tags" is in the API docs but doesn't actually return things...
+
+def get_local_time(time_str):
+    """Convert time string into a local timestamp"""
+    t = parser.parse(time_str)
+    t_local = t.astimezone(tz.tzlocal())
+    return time.mktime(t_local.timetuple())
 
 class FacebookConnector:
     def __init__(self, app_id, app_secret):
         self.app_id = app_id
         self.app_secret = app_secret
-        self.client = None
+        self.graph = None
 
     def authenticate(self):
         """Connect and authenticate user with Facebook"""
-        if self.client is not None:
+        if self.graph is not None:
             return
 
         graph = None
@@ -40,52 +51,85 @@ class FacebookConnector:
             auth_file.close()
             print("Facebook: Successfully authenticated and saved to file!")
 
-        self.client = graph
+        self.graph = graph
 
-    def get_albums(self):
-        """Return a listing of all albums"""
-        response = self.client.request("me?fields=albums&limit=100")
-        return response['albums']['data']
+    def get_album_iterator(self):
+        """Return an iterator to list all albums"""
+        return FacebookAlbumIterator(self.graph)
 
     def get_photo(self, photo_id):
         """Get a single photo. This will return the object with max size"""
-        photos = self.client.get_object(photo_id, fields='id,name,images')
-        caption = None
-        if 'name' in photos:
-            caption = photos['name']
-        return (max(photos['images'], key=lambda x: x['width']), caption)
+        photos = self.graph.get_object(photo_id, fields=','.join(PHOTO_FIELDS + ['id','images']))
+
+        # Get largest image
+        img_max = max(photos['images'], key=lambda x: x['width'])
+        del(photos['images'])
+
+        # Simplify tags
+        photo_tags = []
+        if "tags" in photos:
+            for tag in photos['tags']['data']:
+                photo_tags.append(tag['name'])
+        photos['tags'] = photo_tags
+
+        # Simplify locations
+        place = None
+        if "place" in photos:
+            place = photos['place']['name']
+        photos['place'] = place
+
+        return (img_max, photos)
 
     def download_album(self, album_id):
         """
         Download album with given ID. Pictures and relevant info will be saved in
         a directory labeled with the album's ID
         """
-        album = self.client.get_object(album_id, fields='name,description,count')
-        album_description = ""
-        if "description" in album:
-            album_description = album["description"]
+        album = self.graph.get_object(album_id, fields=','.join(ALBUM_FIELDS + ['count']))
 
-        album_photos = self.client.request(album_id+"/photos")
+        # Create folder for album
+        folder_name = album_id
+
+        if not os.path.exists(folder_name):
+           os.makedirs(folder_name)
         
-        # TODO if already exists...?
-        if not os.path.exists(album_id):
-           os.makedirs(album_id)
+        # Metadata for all photos
+        info = {"photos":[]}
+        for field in ALBUM_FIELDS:
+            if field in album:
+                info[field] = album[field]
+            else:
+                info[field] = None
         
-        # TODO this just does first 25, need to do pagination
-        info = {"title": album["name"], "description":album_description, "photos":[]}
-        i = 1
-        for album_photo in album_photos['data']:
+        i = 1 # for the normal people who count 1-indexed :P
+        for album_photo in FacebookPhotoIterator(self.graph, album_id):
             print("Downloading image {0} of {1}".format(i,album['count']))
-            photo, caption = self.get_photo(album_photo['id'])
+            
+            img_max, photo = self.get_photo(album_photo['id'])
             filename = album_photo['id'] + ".jpg"
-            info["photos"].append({'id':album_photo['id'], 'file':filename, 'caption':caption})
-            image = requests.get(photo["source"], stream=True)
-            image_file = open(os.path.join(album_id, filename), "wb")
+            photo_info = {}
+            for field in PHOTO_FIELDS:
+                if field in photo:
+                    photo_info[field] = photo[field]
+                else:
+                    photo_info[field] = None
+            
+            info["photos"].append(photo_info)
+            
+            # Save image
+            image = requests.get(img_max["source"], stream=True)
+            image_file = open(os.path.join(folder_name, filename), "wb")
             shutil.copyfileobj(image.raw, image_file)
             image_file.close()
+
+            # Set image file time
+            ct = get_local_time(photo["created_time"])
+            ut = get_local_time(photo["updated_time"])
+            os.utime(image_file.name, (ct, ut))
+
             i += 1
 
-        info_file = open(os.path.join(album_id, "info.json"), "w")
+        info_file = open(os.path.join(folder_name, "info.json"), "w")
         json.dump(info, info_file)
         info_file.close()
-        print("Download complete! Album is located in: " + album_id)
+        print("Download complete! Album is located in: " + folder_name)
